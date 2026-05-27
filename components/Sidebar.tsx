@@ -15,6 +15,9 @@ const NAV_ITEMS = [
 
 const COMING_SOON = [
   { href: '/clases', label: 'Clases Prácticas', icon: '🚗' },
+  { href: '/expedientes', label: 'Expedientes', icon: '🗂️' },
+  { href: '/portal', label: 'Portal Alumno', icon: '📱' },
+  { href: '/facturacion', label: 'Facturación', icon: '🧾' },
   { href: '/videos', label: 'Plataforma Vídeos', icon: '🎬' },
   { href: '/ads', label: 'Campañas de Ads', icon: '📣' },
 ]
