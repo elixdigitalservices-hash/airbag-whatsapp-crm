@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       currency: session.currency ?? 'eur',
       status: 'succeeded',
       paid_at: new Date().toISOString(),
-      raw_payload: event.data.object as Record<string, unknown>,
+      raw_payload: event.data.object as unknown as Record<string, unknown>,
     })
 
     if (leadId) {
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
         currency: pi.currency,
         status: 'succeeded',
         paid_at: new Date().toISOString(),
-        raw_payload: event.data.object as Record<string, unknown>,
+        raw_payload: event.data.object as unknown as Record<string, unknown>,
       })
     }
   }
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       amount: pi.amount,
       currency: pi.currency,
       status: 'failed',
-      raw_payload: event.data.object as Record<string, unknown>,
+      raw_payload: event.data.object as unknown as Record<string, unknown>,
     }, { onConflict: 'stripe_payment_id' })
   }
 
