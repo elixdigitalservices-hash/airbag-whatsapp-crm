@@ -13,6 +13,12 @@ const NAV_ITEMS = [
   { href: '/settings', label: 'Ajustes', icon: '⚙️' },
 ]
 
+const COMING_SOON = [
+  { href: '/clases', label: 'Clases Prácticas', icon: '🚗' },
+  { href: '/videos', label: 'Plataforma Vídeos', icon: '🎬' },
+  { href: '/ads', label: 'Campañas de Ads', icon: '📣' },
+]
+
 const IS_DEMO = !process.env.NEXT_PUBLIC_SUPABASE_URL
 
 export default function Sidebar() {
@@ -63,7 +69,7 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
@@ -78,6 +84,31 @@ export default function Sidebar() {
             >
               <span className="text-base">{item.icon}</span>
               {item.label}
+            </Link>
+          )
+        })}
+
+        {/* Próximamente */}
+        <div className="pt-4 pb-1">
+          <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">Próximamente</p>
+        </div>
+        {COMING_SOON.map((item) => {
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group ${
+                isActive
+                  ? 'bg-slate-700 text-white'
+                  : 'text-slate-500 hover:bg-slate-800 hover:text-slate-300'
+              }`}
+            >
+              <span className="text-base">{item.icon}</span>
+              <span className="flex-1">{item.label}</span>
+              <span className="text-[10px] font-bold bg-slate-700 group-hover:bg-slate-600 text-slate-400 px-1.5 py-0.5 rounded-md tracking-wide">
+                BETA
+              </span>
             </Link>
           )
         })}
