@@ -63,6 +63,25 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-8">
+      {/* Banner urgente */}
+      {metrics.pendingHuman > 0 && (
+        <a
+          href="/leads?status=pending_human"
+          className="flex items-center gap-3 bg-orange-500 text-white px-5 py-3.5 rounded-2xl mb-6 hover:bg-orange-600 transition-colors shadow-sm group"
+        >
+          <span className="text-xl">🙋</span>
+          <div className="flex-1">
+            <p className="font-bold text-sm">
+              {metrics.pendingHuman} {metrics.pendingHuman === 1 ? 'lead requiere' : 'leads requieren'} atención humana
+            </p>
+            <p className="text-orange-200 text-xs">Haz clic para ver los leads pendientes</p>
+          </div>
+          <span className="bg-white/20 group-hover:bg-white/30 font-bold text-sm px-3 py-1 rounded-full transition-colors">
+            Ver →
+          </span>
+        </a>
+      )}
+
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>

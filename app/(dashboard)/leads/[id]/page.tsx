@@ -4,7 +4,9 @@ import { getLeadById, getMessagesByLeadId, getNotesByLeadId, getPaymentsByLeadId
 import { isDemoMode } from '@/lib/db'
 import { LeadStatusBadge, PaymentStatusBadge } from '@/components/StatusBadge'
 import LeadActions from './LeadActions'
-import type { Message, InternalNote, LeadStatus } from '@/types'
+import ChatMessages from './ChatMessages'
+import ManualReply from './ManualReply'
+import type { InternalNote, LeadStatus } from '@/types'
 
 export default async function LeadDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -50,25 +52,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             <div className="px-5 py-4 border-b border-slate-100">
               <h3 className="font-semibold text-slate-900 text-sm">Conversación ({messages.length} mensajes)</h3>
             </div>
-            <div className="p-5 space-y-3 max-h-[500px] overflow-y-auto">
-              {messages.length === 0 && (
-                <p className="text-slate-400 text-sm text-center py-8">Sin mensajes aún</p>
-              )}
-              {messages.map((msg: Message) => (
-                <div key={msg.id} className={`flex ${msg.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                    msg.direction === 'outbound' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-900'
-                  }`}>
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
-                    <p className={`text-xs mt-1 ${msg.direction === 'outbound' ? 'text-blue-200' : 'text-slate-400'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                      {' · '}
-                      {msg.sender_type === 'bot' ? 'Bot' : msg.sender_type === 'human' ? 'Humano' : 'Cliente'}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ChatMessages messages={messages} />
+            <ManualReply leadId={lead.id} phone={lead.phone} demoMode={isDemoMode()} />
           </div>
 
           {notes.length > 0 && (

@@ -15,22 +15,24 @@ export function isDemoMode(): boolean {
 
 // --- Leads ---
 
-export async function getLeads(filters?: { status?: string; q?: string }): Promise<Lead[]> {
-  if (isDemoMode()) {
-    let leads = [...MOCK_LEADS]
-    if (filters?.status && filters.status !== 'all') {
-      leads = leads.filter(l => l.status === filters.status)
-    }
-    if (filters?.q) {
-      const q = filters.q.toLowerCase()
-      leads = leads.filter(l =>
-        l.name?.toLowerCase().includes(q) ||
-        l.phone.includes(q) ||
-        l.email?.toLowerCase().includes(q)
-      )
-    }
-    return leads.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+function filterLeads(leads: Lead[], filters?: { status?: string; q?: string }): Lead[] {
+  let result = [...leads]
+  if (filters?.status && filters.status !== 'all') {
+    result = result.filter(l => l.status === filters.status)
   }
+  if (filters?.q) {
+    const q = filters.q.toLowerCase()
+    result = result.filter(l =>
+      l.name?.toLowerCase().includes(q) ||
+      l.phone.includes(q) ||
+      l.email?.toLowerCase().includes(q)
+    )
+  }
+  return result.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+}
+
+export async function getLeads(filters?: { status?: string; q?: string }): Promise<Lead[]> {
+  if (isDemoMode()) return filterLeads(MOCK_LEADS, filters)
 
   const { createClient } = await import('./supabase/server')
   const supabase = await createClient()
@@ -39,6 +41,30 @@ export async function getLeads(filters?: { status?: string; q?: string }): Promi
   if (filters?.q) query = query.or(`name.ilike.%${filters.q}%,phone.ilike.%${filters.q}%,email.ilike.%${filters.q}%`)
   const { data } = await query
   return (data ?? []) as Lead[]
+}
+
+export async function getLeadsPaginated(filters?: {
+  status?: string
+  q?: string
+  page?: number
+  limit?: number
+}): Promise<{ leads: Lead[]; total: number }> {
+  const page = filters?.page ?? 1
+  const limit = filters?.limit ?? 25
+  const offset = (page - 1) * limit
+
+  if (isDemoMode()) {
+    const all = filterLeads(MOCK_LEADS, filters)
+    return { leads: all.slice(offset, offset + limit), total: all.length }
+  }
+
+  const { createClient } = await import('./supabase/server')
+  const supabase = await createClient()
+  let query = supabase.from('leads').select('*', { count: 'exact' }).order('updated_at', { ascending: false }).range(offset, offset + limit - 1)
+  if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
+  if (filters?.q) query = query.or(`name.ilike.%${filters.q}%,phone.ilike.%${filters.q}%,email.ilike.%${filters.q}%`)
+  const { data, count } = await query
+  return { leads: (data ?? []) as Lead[], total: count ?? 0 }
 }
 
 export async function getLeadById(id: string): Promise<Lead | null> {
