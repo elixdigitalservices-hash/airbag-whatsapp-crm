@@ -1,8 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ClaudeResponse, Service, Promotion } from '@/types'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-
 const FALLBACK: ClaudeResponse = {
   reply:
     'Ahora mismo no puedo confirmar esa información con seguridad. Para evitar darte un dato incorrecto, contacta directamente con Autoescuela Airbag: 955 542 232 o info@aeairbag.com.',
@@ -96,6 +94,7 @@ RESPONDE ÚNICAMENTE con un JSON válido con esta estructura exacta, sin texto f
 }`
 
   try {
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
