@@ -7,7 +7,7 @@ import type { Lead, LeadStatus } from '@/types'
 
 function DemoBanner() {
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+    <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5 text-xs text-orange-700 font-medium">
       Modo demo — las acciones se activarán al conectar la base de datos
     </div>
   )
@@ -66,48 +66,48 @@ export default function LeadActions({ lead, demoMode }: { lead: Lead; demoMode: 
     <div className="space-y-4">
       {demoMode && <DemoBanner />}
 
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <h3 className="font-semibold text-slate-900 mb-3 text-sm">Acciones</h3>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <h3 className="font-bold text-slate-900 mb-3 text-sm">Acciones</h3>
         <div className="space-y-2">
           <button onClick={() => updateStatus('interested')} disabled={saving || demoMode}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 border border-slate-200 transition-colors disabled:opacity-50">
+            className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 border border-slate-200 transition-colors disabled:opacity-50 font-medium">
             ✅ Marcar como contactado
           </button>
           <button onClick={toggleHuman} disabled={saving || demoMode}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm border transition-colors disabled:opacity-50 ${
+            className={`w-full text-left px-3 py-2.5 rounded-xl text-sm border transition-colors disabled:opacity-50 font-medium ${
               lead.requires_human
-                ? 'bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100'
+                ? 'bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100'
                 : 'text-slate-700 hover:bg-slate-50 border-slate-200'
             }`}>
             🙋 {lead.requires_human ? 'Quitar pendiente humano' : 'Marcar pendiente humano'}
           </button>
           <button onClick={() => updateStatus('closed')} disabled={saving || demoMode}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 border border-slate-200 transition-colors disabled:opacity-50">
+            className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-slate-700 hover:bg-slate-50 border border-slate-200 transition-colors disabled:opacity-50 font-medium">
             🔒 Marcar como cerrado
           </button>
           <button onClick={markPaid} disabled={saving || demoMode}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm text-green-700 hover:bg-green-50 border border-green-200 transition-colors disabled:opacity-50">
+            className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition-colors disabled:opacity-50 font-medium">
             💰 Marcar como pagado manualmente
           </button>
           <button onClick={copyPhone}
-            className="w-full text-left px-3 py-2 rounded-lg text-sm text-blue-700 hover:bg-blue-50 border border-blue-200 transition-colors">
+            className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-orange-700 hover:bg-orange-50 border border-orange-200 transition-colors font-medium">
             📋 Copiar teléfono
           </button>
           <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
-            className="block w-full text-left px-3 py-2 rounded-lg text-sm text-green-700 hover:bg-green-50 border border-green-200 transition-colors">
+            className="block w-full text-left px-3 py-2.5 rounded-xl text-sm text-emerald-700 hover:bg-emerald-50 border border-emerald-200 transition-colors font-medium">
             💬 Abrir WhatsApp
           </a>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <h3 className="font-semibold text-slate-900 mb-3 text-sm">Añadir nota interna</h3>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <h3 className="font-bold text-slate-900 mb-3 text-sm">Nota interna</h3>
         <form onSubmit={addNote} className="space-y-2">
           <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Escribe una nota..." rows={3}
             disabled={demoMode}
-            className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:opacity-50 disabled:bg-slate-50" />
+            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent resize-none disabled:opacity-50 disabled:bg-slate-50 transition" />
           <button type="submit" disabled={saving || !note.trim() || demoMode}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors">
+            className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-xl transition-all shadow-sm">
             Guardar nota
           </button>
         </form>
