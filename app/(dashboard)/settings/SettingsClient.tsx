@@ -26,13 +26,15 @@ function GeneralTab({ init, demoMode }: { init: Record<string, string>; demoMode
   const [saved, setSaved] = useState(false)
   const supabase = createClient()
 
-  const FIELDS = [
+  const FIELDS: { key: string; label: string; type: string; placeholder: string; rows?: number }[] = [
     { key: 'school_name', label: 'Nombre de la autoescuela', type: 'text', placeholder: 'Autoescuela Airbag' },
     { key: 'school_phone', label: 'Teléfono', type: 'text', placeholder: '954 000 000' },
     { key: 'school_email', label: 'Email', type: 'email', placeholder: 'info@airbag.com' },
     { key: 'school_address', label: 'Dirección', type: 'text', placeholder: 'C/ Principal 12, Tomares' },
     { key: 'school_hours', label: 'Horario', type: 'text', placeholder: 'L-V 9:00-14:00 / 16:00-20:00' },
     { key: 'school_web', label: 'Página web', type: 'url', placeholder: 'https://airbag.com' },
+    { key: 'school_description', label: 'Descripción de la autoescuela', type: 'textarea', rows: 3, placeholder: 'Ej: Autoescuela especializada en carnet de coche y moto en Tomares. Clases con vehículos modernos y profesores con más de 15 años de experiencia...' },
+    { key: 'school_differentiators', label: 'Puntos diferenciales', type: 'textarea', rows: 2, placeholder: 'Ej: Aprobamos el 85% de alumnos a la primera · Clases en fin de semana · Sin letra pequeña en el precio' },
   ]
 
   async function handleSave(e: React.FormEvent) {
@@ -46,6 +48,8 @@ function GeneralTab({ init, demoMode }: { init: Record<string, string>; demoMode
     setTimeout(() => setSaved(false), 3000)
   }
 
+  const fullWidthKeys = new Set(['school_name', 'school_address', 'school_description', 'school_differentiators'])
+
   return (
     <form onSubmit={handleSave} className="space-y-5 max-w-2xl">
       {demoMode && <DemoBanner />}
@@ -53,11 +57,17 @@ function GeneralTab({ init, demoMode }: { init: Record<string, string>; demoMode
         <h3 className="font-bold text-slate-900 text-sm mb-5">Datos de la autoescuela</h3>
         <div className="grid grid-cols-2 gap-4">
           {FIELDS.map(f => (
-            <div key={f.key} className={f.key === 'school_name' || f.key === 'school_address' ? 'col-span-2' : ''}>
+            <div key={f.key} className={fullWidthKeys.has(f.key) ? 'col-span-2' : ''}>
               <label className={LABEL}>{f.label}</label>
-              <input type={f.type} value={values[f.key] ?? ''} placeholder={f.placeholder}
-                onChange={e => setValues(p => ({ ...p, [f.key]: e.target.value }))}
-                className={INPUT} />
+              {f.type === 'textarea' ? (
+                <textarea value={values[f.key] ?? ''} placeholder={f.placeholder} rows={f.rows ?? 3}
+                  onChange={e => setValues(p => ({ ...p, [f.key]: e.target.value }))}
+                  className={`${INPUT} resize-y`} />
+              ) : (
+                <input type={f.type} value={values[f.key] ?? ''} placeholder={f.placeholder}
+                  onChange={e => setValues(p => ({ ...p, [f.key]: e.target.value }))}
+                  className={INPUT} />
+              )}
             </div>
           ))}
         </div>
