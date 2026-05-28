@@ -38,7 +38,7 @@ function ChevronRight() {
   )
 }
 
-export default function Sidebar() {
+export default function Sidebar({ urgentCount = 0 }: { urgentCount?: number }) {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -118,19 +118,26 @@ export default function Sidebar() {
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
 
+          const showBadge = item.href === '/leads' && urgentCount > 0
+
           if (collapsed) {
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={item.label}
-                className={`flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all duration-150 ${
+                className={`relative flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all duration-150 ${
                   isActive
                     ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
                     : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                 }`}
               >
                 <span className="text-lg">{item.icon}</span>
+                {showBadge && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center shadow-sm">
+                    {urgentCount > 9 ? '9+' : urgentCount}
+                  </span>
+                )}
               </Link>
             )
           }
@@ -146,7 +153,12 @@ export default function Sidebar() {
               }`}
             >
               <span className="text-base">{item.icon}</span>
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {showBadge && (
+                <span className="flex items-center justify-center min-w-[20px] h-5 bg-red-500 rounded-full text-[10px] font-bold text-white px-1.5 shadow-sm animate-pulse">
+                  {urgentCount > 9 ? '9+' : urgentCount}
+                </span>
+              )}
             </Link>
           )
         })}

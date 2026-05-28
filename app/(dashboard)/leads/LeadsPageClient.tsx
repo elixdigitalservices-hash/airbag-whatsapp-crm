@@ -80,7 +80,7 @@ export default function LeadsPageClient({ leads, total, page, totalPages, allLea
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
           {/* Filtros + búsqueda */}
           <div className="px-4 py-3 border-b border-slate-100 flex flex-wrap gap-2 items-center">
             <div className="flex flex-wrap gap-1.5 flex-1">
@@ -134,39 +134,51 @@ export default function LeadsPageClient({ leads, total, page, totalPages, allLea
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {leads.map((lead: Lead) => (
+                {[...leads].sort((a, b) => (b.requires_human ? 1 : 0) - (a.requires_human ? 1 : 0)).map((lead: Lead) => (
                   <tr
                     key={lead.id}
                     onClick={() => setDrawerLeadId(lead.id)}
-                    className="hover:bg-orange-50/40 transition-colors cursor-pointer group"
+                    className={`transition-all cursor-pointer group relative ${
+                      lead.requires_human
+                        ? 'bg-red-50/60 hover:bg-red-50'
+                        : 'hover:bg-orange-50/30'
+                    }`}
                   >
-                    <td className="px-5 py-3.5">
+                    {lead.requires_human && (
+                      <td className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-400" />
+                    )}
+                    <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${avatarColor(lead.id)}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm ${avatarColor(lead.id)}`}>
                           {getInitials(lead.name, lead.phone)}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-900 group-hover:text-orange-600 transition-colors flex items-center gap-1.5">
-                            {lead.name ?? <span className="text-slate-400 font-normal italic">Sin nombre</span>}
+                          <p className="font-semibold text-slate-900 group-hover:text-orange-600 transition-colors flex items-center gap-2">
+                            {lead.name ?? <span className="text-slate-400 font-normal italic text-sm">Sin nombre</span>}
                             {lead.requires_human && (
-                              <span className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0 inline-block" title="Pendiente humano" />
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold uppercase tracking-wide">
+                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                                Urgente
+                              </span>
                             )}
                           </p>
-                          <p className="text-slate-400 text-xs mt-0.5">{lead.phone}</p>
+                          <p className="text-slate-400 text-xs mt-0.5 font-mono">{lead.phone}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-600 text-sm">{lead.interest ?? <span className="text-slate-300">—</span>}</td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-4 text-slate-600 text-sm max-w-[140px]">
+                      <p className="truncate">{lead.interest ?? <span className="text-slate-300">—</span>}</p>
+                    </td>
+                    <td className="px-4 py-4">
                       <LeadStatusBadge status={lead.status as LeadStatus} />
                     </td>
-                    <td className="px-4 py-3.5">
+                    <td className="px-4 py-4">
                       <PaymentStatusBadge status={lead.payment_status} />
                     </td>
-                    <td className="px-4 py-3.5 max-w-[180px]">
+                    <td className="px-4 py-4 max-w-[180px]">
                       <p className="text-slate-400 truncate text-xs">{lead.last_message ?? '—'}</p>
                     </td>
-                    <td className="px-4 py-3.5 text-slate-400 text-xs whitespace-nowrap">
+                    <td className="px-4 py-4 text-slate-400 text-xs whitespace-nowrap">
                       {timeAgo(lead.updated_at)}
                     </td>
                   </tr>
