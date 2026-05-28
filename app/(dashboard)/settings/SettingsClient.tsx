@@ -93,6 +93,7 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
     const upserts = [
       ...MSG_FIELDS.map(f => ({ key: f.key, value: JSON.stringify(values[f.key] ?? ''), updated_at: new Date().toISOString() })),
       { key: 'chatbot_active', value: JSON.stringify(active), updated_at: new Date().toISOString() },
+      { key: 'system_prompt', value: JSON.stringify(values['system_prompt'] ?? ''), updated_at: new Date().toISOString() },
     ]
     await supabase.from('settings').upsert(upserts, { onConflict: 'key' })
     setSaving(false)
@@ -126,6 +127,22 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
         </div>
       </div>
 
+      {/* Prompt Maestro */}
+      <div className="bg-white rounded-2xl border-2 border-orange-100 shadow-sm p-6 space-y-3">
+        <div>
+          <h3 className="font-bold text-slate-900 text-sm">Prompt Maestro</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Define la personalidad, tono y reglas del bot. Si está vacío se usan las instrucciones por defecto.</p>
+        </div>
+        <textarea
+          value={values['system_prompt'] ?? ''}
+          onChange={e => setValues(p => ({ ...p, system_prompt: e.target.value }))}
+          rows={10}
+          placeholder={`Ejemplo:\nEres el asistente de ventas de Autoescuela Airbag. Tu tono es cercano, profesional y en español. Siempre responde con empatía...\n\nPuedes añadir aquí reglas específicas, frases prohibidas, cómo tratar objeciones de precio, etc.`}
+          className={`${INPUT} resize-y font-mono text-xs leading-relaxed`}
+        />
+        <p className="text-xs text-slate-400">💡 Esto se añade al inicio de cada conversación. Sé específico: tono, qué ofrecer primero, cómo manejar el precio, cuándo derivar.</p>
+      </div>
+
       {/* Mensajes */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
         <h3 className="font-bold text-slate-900 text-sm">Mensajes del bot</h3>
@@ -140,15 +157,15 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
         ))}
       </div>
 
-      {/* Modelo IA (visual) */}
+      {/* Modelo IA */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <h3 className="font-bold text-slate-900 text-sm mb-4">Modelo de IA</h3>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', desc: 'Rápido y preciso · Recomendado', active: true },
-            { id: 'claude-opus-4-7', label: 'Claude Opus 4.7', desc: 'Máxima capacidad', active: false },
+            { id: 'gpt-4o-mini', label: 'GPT-4o mini', desc: 'Rápido, preciso y económico · Activo', active: true },
+            { id: 'gpt-4o', label: 'GPT-4o', desc: 'Máxima capacidad · Próximamente', active: false },
           ].map(m => (
-            <div key={m.id} className={`p-4 rounded-xl border-2 cursor-pointer transition-colors ${m.active ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}>
+            <div key={m.id} className={`p-4 rounded-xl border-2 cursor-default transition-colors ${m.active ? 'border-orange-400 bg-orange-50' : 'border-slate-200 opacity-60'}`}>
               <div className="flex items-center justify-between mb-1">
                 <p className="text-sm font-bold text-slate-900">{m.label}</p>
                 {m.active && <span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full font-semibold">Activo</span>}

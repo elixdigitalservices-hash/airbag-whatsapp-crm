@@ -34,8 +34,8 @@ function filterLeads(leads: Lead[], filters?: { status?: string; q?: string }): 
 export async function getLeads(filters?: { status?: string; q?: string }): Promise<Lead[]> {
   if (isDemoMode()) return filterLeads(MOCK_LEADS, filters)
 
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   let query = supabase.from('leads').select('*').order('updated_at', { ascending: false })
   if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
   if (filters?.q) query = query.or(`name.ilike.%${filters.q}%,phone.ilike.%${filters.q}%,email.ilike.%${filters.q}%`)
@@ -58,8 +58,8 @@ export async function getLeadsPaginated(filters?: {
     return { leads: all.slice(offset, offset + limit), total: all.length }
   }
 
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   let query = supabase.from('leads').select('*', { count: 'exact' }).order('updated_at', { ascending: false }).range(offset, offset + limit - 1)
   if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
   if (filters?.q) query = query.or(`name.ilike.%${filters.q}%,phone.ilike.%${filters.q}%,email.ilike.%${filters.q}%`)
@@ -71,8 +71,8 @@ export async function getLeadById(id: string): Promise<Lead | null> {
   if (isDemoMode()) {
     return MOCK_LEADS.find(l => l.id === id) ?? null
   }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('leads').select('*').eq('id', id).single()
   return data as Lead | null
 }
@@ -84,8 +84,8 @@ export async function getLeadsWithMessages() {
       messages: MOCK_MESSAGES[lead.id] ?? [],
     }))
   }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase
     .from('leads')
     .select('*, messages(id, content, direction, created_at)')
@@ -101,8 +101,8 @@ export async function getMessagesByLeadId(leadId: string): Promise<Message[]> {
       (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     )
   }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('messages').select('*').eq('lead_id', leadId).order('created_at', { ascending: true })
   return (data ?? []) as Message[]
 }
@@ -115,8 +115,8 @@ export async function getNotesByLeadId(leadId: string): Promise<InternalNote[]> 
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     )
   }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('internal_notes').select('*').eq('lead_id', leadId).order('created_at', { ascending: false })
   return (data ?? []) as InternalNote[]
 }
@@ -130,8 +130,8 @@ export async function getPayments(): Promise<(Payment & { leads?: { name: string
       leads: p.lead_id ? { name: MOCK_LEADS.find(l => l.id === p.lead_id)?.name ?? null, phone: MOCK_LEADS.find(l => l.id === p.lead_id)?.phone ?? '' } : null,
     }))
   }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('payments').select('*, leads(name, phone)').order('created_at', { ascending: false })
   return (data ?? []) as (Payment & { leads?: { name: string | null; phone: string } | null })[]
 }
@@ -140,8 +140,8 @@ export async function getPaymentsByLeadId(leadId: string): Promise<Payment[]> {
   if (isDemoMode()) {
     return MOCK_PAYMENTS.filter(p => p.lead_id === leadId)
   }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('payments').select('*').eq('lead_id', leadId).order('created_at', { ascending: false })
   return (data ?? []) as Payment[]
 }
@@ -150,8 +150,8 @@ export async function getPaymentsByLeadId(leadId: string): Promise<Payment[]> {
 
 export async function getServices(): Promise<Service[]> {
   if (isDemoMode()) return [...MOCK_SERVICES].sort((a, b) => a.sort_order - b.sort_order)
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('services').select('*').order('sort_order')
   return (data ?? []) as Service[]
 }
@@ -160,8 +160,8 @@ export async function getServices(): Promise<Service[]> {
 
 export async function getPromotions(): Promise<Promotion[]> {
   if (isDemoMode()) return MOCK_PROMOTIONS
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('promotions').select('*').order('created_at', { ascending: false })
   return (data ?? []) as Promotion[]
 }
@@ -170,8 +170,8 @@ export async function getPromotions(): Promise<Promotion[]> {
 
 export async function getSettings(): Promise<Record<string, string>> {
   if (isDemoMode()) return { ...MOCK_SETTINGS }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const { data } = await supabase.from('settings').select('key, value')
   const settings: Record<string, string> = {}
   for (const row of data ?? []) {
@@ -207,8 +207,8 @@ export async function getDashboardMetrics() {
       weeklyLeads: [3, 5, 2, 7, 4, 6, 3],
     }
   }
-  const { createClient } = await import('./supabase/server')
-  const supabase = await createClient()
+  const { createAdminClient } = await import('./supabase/server')
+  const supabase = await createAdminClient()
   const [leadsRes, humanRes, linkRes, paymentsRes] = await Promise.all([
     supabase.from('leads').select('id, status, created_at'),
     supabase.from('leads').select('id', { count: 'exact' }).eq('requires_human', true),

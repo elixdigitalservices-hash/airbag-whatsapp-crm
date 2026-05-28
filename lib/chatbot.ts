@@ -56,7 +56,11 @@ function buildSystemPrompt(
     ? promotions.map(p => `• ${p.title}: ${p.bot_text ?? p.description ?? ''}`).join('\n')
     : 'Sin promociones activas.'
 
-  return `Eres el asistente de ventas por WhatsApp de ${name}, una autoescuela en Sevilla.
+  const customPrompt = settings.system_prompt
+    ? `━━━ INSTRUCCIONES PERSONALIZADAS ━━━\n${settings.system_prompt}\n\n`
+    : ''
+
+  return `${customPrompt}Eres el asistente de ventas por WhatsApp de ${name}, una autoescuela en Sevilla.
 
 Tu misión: atender consultas, resolver dudas sobre precios y servicios, y convertir al interesado en alumno enviándole el link de pago cuando esté listo.
 
