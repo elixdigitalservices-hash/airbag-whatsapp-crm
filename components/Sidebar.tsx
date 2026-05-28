@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -22,9 +23,25 @@ const COMING_SOON = [
 
 const IS_DEMO = !process.env.NEXT_PUBLIC_SUPABASE_URL
 
+function ChevronLeft() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M9 3L5 7l4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+function ChevronRight() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [collapsed, setCollapsed] = useState(false)
 
   async function handleLogout() {
     if (IS_DEMO) {
@@ -41,28 +58,55 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-slate-700/50">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center text-white font-black text-base shadow-lg shadow-orange-500/30">
-            A
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <p className="font-bold text-white text-sm tracking-tight">Airbag CRM</p>
-              {IS_DEMO && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                  Demo
-                </span>
-              )}
+    <aside
+      className={`${collapsed ? 'w-16' : 'w-64'} min-h-screen bg-slate-900 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out`}
+    >
+      {/* Header */}
+      <div className={`border-b border-slate-700/50 ${collapsed ? 'px-3 py-4 flex flex-col items-center gap-3' : 'px-5 py-5'}`}>
+        {collapsed ? (
+          <>
+            <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center text-white font-black text-base shadow-lg shadow-orange-500/30">
+              A
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">Autoescuela Airbag</p>
+            <button
+              onClick={() => setCollapsed(false)}
+              title="Expandir menú"
+              className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-orange-500 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+            >
+              <ChevronRight />
+            </button>
+          </>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center text-white font-black text-base shadow-lg shadow-orange-500/30 flex-shrink-0">
+                A
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-white text-sm tracking-tight">Airbag CRM</p>
+                  {IS_DEMO && (
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                      Demo
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">Autoescuela Airbag</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCollapsed(true)}
+              title="Colapsar menú"
+              className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-white transition-all flex-shrink-0"
+            >
+              <ChevronLeft />
+            </button>
           </div>
-        </div>
+        )}
       </div>
 
-      {IS_DEMO && (
+      {/* Demo banner — solo expandido */}
+      {IS_DEMO && !collapsed && (
         <div className="mx-3 mt-3 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
           <p className="text-xs text-orange-400 font-medium">Modo demo activo</p>
           <p className="text-xs text-slate-500 mt-0.5">Conecta Supabase para activar todo</p>
@@ -70,9 +114,27 @@ export default function Sidebar() {
       )}
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className={`flex-1 py-4 space-y-0.5 overflow-y-auto ${collapsed ? 'px-2' : 'px-3'}`}>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+          if (collapsed) {
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.label}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all duration-150 ${
+                  isActive
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <span className="text-lg">{item.icon}</span>
+              </Link>
+            )
+          }
+
           return (
             <Link
               key={item.href}
@@ -89,12 +151,35 @@ export default function Sidebar() {
           )
         })}
 
-        {/* Próximamente */}
-        <div className="pt-4 pb-1">
-          <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">Próximamente</p>
-        </div>
+        {/* Separador Próximamente */}
+        {collapsed ? (
+          <div className="pt-3 pb-1 mx-2 border-t border-slate-800" />
+        ) : (
+          <div className="pt-4 pb-1">
+            <p className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-600">Próximamente</p>
+          </div>
+        )}
+
         {COMING_SOON.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+
+          if (collapsed) {
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.label}
+                className={`flex items-center justify-center w-10 h-10 rounded-xl mx-auto transition-all duration-150 ${
+                  isActive
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-600 hover:bg-slate-800 hover:text-slate-400'
+                }`}
+              >
+                <span className="text-base opacity-70">{item.icon}</span>
+              </Link>
+            )
+          }
+
           return (
             <Link
               key={item.href}
@@ -116,15 +201,25 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-3 pb-4">
+      <div className={`pb-4 ${collapsed ? 'px-2' : 'px-3'}`}>
         <div className="border-t border-slate-700/50 pt-4">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-all duration-150"
-          >
-            <span className="text-base">🚪</span>
-            Cerrar sesión
-          </button>
+          {collapsed ? (
+            <button
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              className="flex items-center justify-center w-10 h-10 rounded-xl mx-auto text-slate-400 hover:bg-slate-800 hover:text-white transition-all duration-150"
+            >
+              <span className="text-lg">🚪</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-all duration-150"
+            >
+              <span className="text-base">🚪</span>
+              Cerrar sesión
+            </button>
+          )}
         </div>
       </div>
     </aside>
