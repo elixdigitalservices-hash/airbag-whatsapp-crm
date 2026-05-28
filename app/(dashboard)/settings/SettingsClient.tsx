@@ -74,11 +74,18 @@ function GeneralTab({ init, demoMode }: { init: Record<string, string>; demoMode
 
 // ── Bot & IA tab ──────────────────────────────────────────────────────────────
 
+interface KbEntry { title: string; content: string }
+
 function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: boolean }) {
   const [values, setValues] = useState(init)
   const [active, setActive] = useState(init.chatbot_active === 'true')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [kb, setKb] = useState<KbEntry[]>(() => {
+    try { return JSON.parse(init.knowledge_base ?? '[]') } catch { return [] }
+  })
+  const [newEntry, setNewEntry] = useState<KbEntry>({ title: '', content: '' })
+  const [addingEntry, setAddingEntry] = useState(false)
   const supabase = createClient()
 
   const MSG_FIELDS = [
@@ -94,6 +101,7 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
       ...MSG_FIELDS.map(f => ({ key: f.key, value: JSON.stringify(values[f.key] ?? ''), updated_at: new Date().toISOString() })),
       { key: 'chatbot_active', value: JSON.stringify(active), updated_at: new Date().toISOString() },
       { key: 'system_prompt', value: JSON.stringify(values['system_prompt'] ?? ''), updated_at: new Date().toISOString() },
+      { key: 'knowledge_base', value: JSON.stringify(kb), updated_at: new Date().toISOString() },
     ]
     await supabase.from('settings').upsert(upserts, { onConflict: 'key' })
     setSaving(false)
@@ -141,6 +149,68 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
           className={`${INPUT} resize-y font-mono text-xs leading-relaxed`}
         />
         <p className="text-xs text-slate-400">💡 Esto se añade al inicio de cada conversación. Sé específico: tono, qué ofrecer primero, cómo manejar el precio, cuándo derivar.</p>
+      </div>
+
+      {/* Base de Conocimiento */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div>
+          <h3 className="font-bold text-slate-900 text-sm">Base de Conocimiento</h3>
+          <p className="text-xs text-slate-400 mt-0.5">Bloques de info que el bot conoce: precios extra, profesores, cómo pedir cita, examen médico, FAQs…</p>
+        </div>
+
+        <div className="space-y-3">
+          {kb.map((entry, i) => (
+            <div key={i} className="border border-slate-200 rounded-xl p-4 bg-slate-50 group">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <p className="text-sm font-bold text-slate-900">{entry.title}</p>
+                <button type="button" onClick={() => setKb(k => k.filter((_, idx) => idx !== i))}
+                  className="text-red-400 hover:text-red-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium flex-shrink-0">
+                  Eliminar
+                </button>
+              </div>
+              <p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">{entry.content}</p>
+            </div>
+          ))}
+          {kb.length === 0 && !addingEntry && (
+            <div className="border border-dashed border-slate-200 rounded-xl p-8 text-center">
+              <p className="text-2xl mb-2">📚</p>
+              <p className="text-sm text-slate-400">Sin entradas — añade info que el bot debe conocer</p>
+            </div>
+          )}
+        </div>
+
+        {addingEntry ? (
+          <div className="border-2 border-orange-200 rounded-xl p-4 bg-orange-50/30 space-y-3">
+            <div>
+              <label className={LABEL}>Título</label>
+              <input value={newEntry.title} onChange={e => setNewEntry(p => ({ ...p, title: e.target.value }))}
+                placeholder="Ej: Cómo reservar clase práctica"
+                className={INPUT} />
+            </div>
+            <div>
+              <label className={LABEL}>Contenido</label>
+              <textarea value={newEntry.content} onChange={e => setNewEntry(p => ({ ...p, content: e.target.value }))}
+                rows={4} placeholder="Escribe aquí la información que debe conocer el bot..."
+                className={`${INPUT} resize-y`} />
+            </div>
+            <div className="flex gap-2">
+              <button type="button"
+                onClick={() => {
+                  if (!newEntry.title.trim() || !newEntry.content.trim()) return
+                  setKb(k => [...k, { title: newEntry.title.trim(), content: newEntry.content.trim() }])
+                  setNewEntry({ title: '', content: '' })
+                  setAddingEntry(false)
+                }}
+                className={BTN_PRIMARY}>Añadir</button>
+              <button type="button" onClick={() => { setAddingEntry(false); setNewEntry({ title: '', content: '' }) }}
+                className={BTN_SECONDARY}>Cancelar</button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setAddingEntry(true)} className={BTN_SECONDARY}>
+            + Añadir entrada
+          </button>
+        )}
       </div>
 
       {/* Mensajes */}

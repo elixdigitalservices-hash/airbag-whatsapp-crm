@@ -39,12 +39,12 @@ interface Props {
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'Todos' },
+  { value: 'requires_human', label: '🚨 Necesita humano' },
   { value: 'new', label: 'Nuevos' },
   { value: 'asked_info', label: 'Pidió info' },
   { value: 'interested', label: 'Interesados' },
   { value: 'payment_link_sent', label: 'Link enviado' },
   { value: 'paid', label: 'Pagados' },
-  { value: 'pending_human', label: '🙋 Humano' },
   { value: 'closed', label: 'Cerrados' },
   { value: 'lost', label: 'Perdidos' },
 ]
@@ -53,8 +53,11 @@ export default function LeadsPageClient({ leads, total, page, totalPages, allLea
   const [drawerLeadId, setDrawerLeadId] = useState<string | null>(null)
   const closeDrawer = useCallback(() => setDrawerLeadId(null), [])
 
-  const countByStatus = (status: string) =>
-    status === 'all' ? allLeads.length : allLeads.filter(l => l.status === status).length
+  const countByStatus = (status: string) => {
+    if (status === 'all') return allLeads.length
+    if (status === 'requires_human') return allLeads.filter(l => l.requires_human).length
+    return allLeads.filter(l => l.status === status).length
+  }
 
   const buildHref = (overrides: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams()
@@ -138,15 +141,13 @@ export default function LeadsPageClient({ leads, total, page, totalPages, allLea
                   <tr
                     key={lead.id}
                     onClick={() => setDrawerLeadId(lead.id)}
-                    className={`transition-all cursor-pointer group relative ${
+                    style={lead.requires_human ? { boxShadow: 'inset 3px 0 0 #f87171' } : undefined}
+                    className={`transition-all cursor-pointer group ${
                       lead.requires_human
                         ? 'bg-red-50/60 hover:bg-red-50'
                         : 'hover:bg-orange-50/30'
                     }`}
                   >
-                    {lead.requires_human && (
-                      <td className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-400" />
-                    )}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-sm ${avatarColor(lead.id)}`}>

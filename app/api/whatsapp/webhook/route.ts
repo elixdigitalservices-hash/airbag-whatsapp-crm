@@ -58,8 +58,8 @@ export async function POST(req: NextRequest) {
 
   const isBotActive = botSetting?.value !== false && botSetting?.value !== 'false' && botSetting?.value !== '"false"'
 
-  if (!isBotActive || lead.requires_human) {
-    // Solo guarda el mensaje, no responde
+  if (!isBotActive) {
+    // Bot desactivado globalmente — solo guarda el mensaje
     return NextResponse.json({ status: 'ok' })
   }
 

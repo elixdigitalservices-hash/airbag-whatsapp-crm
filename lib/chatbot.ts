@@ -42,6 +42,15 @@ function buildSystemPrompt(
   const hours = settings.school_hours ?? 'L-V 10:00-13:00 y 17:00-20:00'
   const handoff = settings.handoff_message ?? `Para esto es mejor que te atienda directamente el equipo.\n📞 ${phone}\n✉️ ${email}`
 
+  let knowledgeBlock = ''
+  try {
+    const kb: { title: string; content: string }[] = JSON.parse(settings.knowledge_base ?? '[]')
+    if (kb.length > 0) {
+      knowledgeBlock = `\n━━━ BASE DE CONOCIMIENTO ━━━\n` +
+        kb.map(k => `## ${k.title}\n${k.content}`).join('\n\n')
+    }
+  } catch { /* ignore parse errors */ }
+
   const servicesBlock = services.length > 0
     ? services.map(s => [
         `• ${s.name}`,
@@ -60,7 +69,7 @@ function buildSystemPrompt(
     ? `━━━ INSTRUCCIONES PERSONALIZADAS ━━━\n${settings.system_prompt}\n\n`
     : ''
 
-  return `${customPrompt}Eres el asistente de ventas por WhatsApp de ${name}, una autoescuela en Sevilla.
+  return `${customPrompt}${knowledgeBlock ? knowledgeBlock + '\n\n' : ''}Eres el asistente de ventas por WhatsApp de ${name}, una autoescuela en Sevilla.
 
 Tu misión: atender consultas, resolver dudas sobre precios y servicios, y convertir al interesado en alumno enviándole el link de pago cuando esté listo.
 

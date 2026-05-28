@@ -37,7 +37,8 @@ export async function getLeads(filters?: { status?: string; q?: string }): Promi
   const { createServiceClient } = await import('./supabase/service')
   const supabase = createServiceClient()
   let query = supabase.from('leads').select('*').order('updated_at', { ascending: false })
-  if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
+  if (filters?.status === 'requires_human') query = query.eq('requires_human', true)
+  else if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
   if (filters?.q) query = query.or(`name.ilike.%${filters.q}%,phone.ilike.%${filters.q}%,email.ilike.%${filters.q}%`)
   const { data } = await query
   return (data ?? []) as Lead[]
@@ -61,7 +62,8 @@ export async function getLeadsPaginated(filters?: {
   const { createServiceClient } = await import('./supabase/service')
   const supabase = createServiceClient()
   let query = supabase.from('leads').select('*', { count: 'exact' }).order('updated_at', { ascending: false }).range(offset, offset + limit - 1)
-  if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
+  if (filters?.status === 'requires_human') query = query.eq('requires_human', true)
+  else if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
   if (filters?.q) query = query.or(`name.ilike.%${filters.q}%,phone.ilike.%${filters.q}%,email.ilike.%${filters.q}%`)
   const { data, count } = await query
   return { leads: (data ?? []) as Lead[], total: count ?? 0 }
