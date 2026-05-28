@@ -197,6 +197,14 @@ export async function getDashboardMetrics() {
       paymentLinkSent: MOCK_LEADS.filter(l => l.status === 'payment_link_sent').length,
       paidLeads: MOCK_LEADS.filter(l => l.status === 'paid').length,
       totalRevenue: MOCK_PAYMENTS.filter(p => p.status === 'succeeded').reduce((s, p) => s + (p.amount ?? 0), 0),
+      funnel: {
+        new: MOCK_LEADS.filter(l => l.status === 'new').length,
+        askedInfo: MOCK_LEADS.filter(l => l.status === 'asked_info').length,
+        interested: MOCK_LEADS.filter(l => l.status === 'interested').length,
+        paymentLinkSent: MOCK_LEADS.filter(l => l.status === 'payment_link_sent').length,
+        paid: MOCK_LEADS.filter(l => l.status === 'paid').length,
+      },
+      weeklyLeads: [3, 5, 2, 7, 4, 6, 3],
     }
   }
   const { createClient } = await import('./supabase/server')
@@ -210,6 +218,20 @@ export async function getDashboardMetrics() {
   const leads = leadsRes.data ?? []
   const now = new Date()
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+  // Build weeklyLeads: index 0 = 6 days ago, index 6 = today
+  const weeklyLeads = Array.from({ length: 7 }, (_, i) => {
+    const dayStart = new Date(now)
+    dayStart.setHours(0, 0, 0, 0)
+    dayStart.setDate(dayStart.getDate() - (6 - i))
+    const dayEnd = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    return leads.filter(l => {
+      const createdAt = new Date(l.created_at)
+      return createdAt >= dayStart && createdAt < dayEnd
+    }).length
+  })
+
   return {
     totalLeads: leads.length,
     newLeads: leads.filter(l => new Date(l.created_at) >= weekAgo).length,
@@ -217,5 +239,13 @@ export async function getDashboardMetrics() {
     paymentLinkSent: linkRes.count ?? 0,
     paidLeads: leads.filter(l => l.status === 'paid').length,
     totalRevenue: (paymentsRes.data ?? []).reduce((s, p) => s + (p.amount ?? 0), 0),
+    funnel: {
+      new: leads.filter(l => l.status === 'new').length,
+      askedInfo: leads.filter(l => l.status === 'asked_info').length,
+      interested: leads.filter(l => l.status === 'interested').length,
+      paymentLinkSent: leads.filter(l => l.status === 'payment_link_sent').length,
+      paid: leads.filter(l => l.status === 'paid').length,
+    },
+    weeklyLeads,
   }
 }
