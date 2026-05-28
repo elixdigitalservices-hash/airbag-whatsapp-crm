@@ -13,47 +13,37 @@ export async function GET(req: NextRequest) {
   if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 })
   }
-
   return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
 
-  const entry = body?.entry?.[0]
-  const change = entry?.changes?.[0]
-  const value = change?.value
-  const message = value?.messages?.[0]
-
+  const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
   if (!message || message.type !== 'text') {
     return NextResponse.json({ status: 'ok' })
   }
 
-  const userPhone = message.from
-  const userText = message.text?.body ?? ''
+  const userPhone = message.from as string
+  const userText = (message.text?.body ?? '') as string
 
   const supabase = createServiceClient()
 
-  let lead = null
+  // Busca o crea el lead
   const { data: existingLead } = await supabase
-    .from('leads')
-    .select('*')
-    .eq('phone', userPhone)
-    .single()
+    .from('leads').select('*').eq('phone', userPhone).single()
 
-  if (existingLead) {
-    lead = existingLead
-  } else {
+  let lead = existingLead
+  if (!lead) {
     const { data: newLead } = await supabase
       .from('leads')
       .insert({ phone: userPhone, status: 'new', source: 'whatsapp' })
-      .select()
-      .single()
+      .select().single()
     lead = newLead
   }
-
   if (!lead) return NextResponse.json({ status: 'ok' })
 
+  // Guarda mensaje entrante
   await supabase.from('messages').insert({
     lead_id: lead.id,
     direction: 'inbound',
@@ -62,25 +52,29 @@ export async function POST(req: NextRequest) {
     whatsapp_message_id: message.id,
   })
 
-  const chatbotActiveSetting = await supabase
-    .from('settings')
-    .select('value')
-    .eq('key', 'chatbot_active')
-    .single()
+  // Comprueba si el bot está activo
+  const { data: botSetting } = await supabase
+    .from('settings').select('value').eq('key', 'chatbot_active').single()
 
-  const isChatbotActive = chatbotActiveSetting.data?.value !== false && chatbotActiveSetting.data?.value !== 'false'
+  const isBotActive = botSetting?.value !== false && botSetting?.value !== 'false' && botSetting?.value !== '"false"'
 
-  if (!isChatbotActive || lead.requires_human) {
+  if (!isBotActive || lead.requires_human) {
+    // Solo guarda el mensaje, no responde
     return NextResponse.json({ status: 'ok' })
   }
 
-  const [servicesRes, promotionsRes, settingsRes, historyRes] = await Promise.all([
+  // Carga contexto en paralelo
+  const [servicesRes, promosRes, settingsRes, historyRes] = await Promise.all([
     supabase.from('services').select('*').eq('active', true).order('sort_order'),
     supabase.from('promotions').select('*').eq('active', true),
     supabase.from('settings').select('key, value'),
-    supabase.from('messages').select('direction, content').eq('lead_id', lead.id).order('created_at', { ascending: true }).limit(20),
+    supabase.from('messages').select('direction, content')
+      .eq('lead_id', lead.id)
+      .order('created_at', { ascending: true })
+      .limit(20),
   ])
 
+  // Parsea settings
   const settings: Record<string, string> = {}
   for (const row of settingsRes.data ?? []) {
     try {
@@ -90,6 +84,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Historial de conversación (excluye el mensaje actual que acaba de llegar)
   const history = (historyRes.data ?? [])
     .slice(0, -1)
     .map(m => ({
@@ -97,38 +92,55 @@ export async function POST(req: NextRequest) {
       content: m.content,
     }))
 
-  const claudeResponse = await getChatbotReply({
+  // Llama al bot
+  const botResponse = await getChatbotReply({
     userMessage: userText,
     conversationHistory: history,
     services: (servicesRes.data ?? []) as Service[],
-    promotions: (promotionsRes.data ?? []) as Promotion[],
+    promotions: (promosRes.data ?? []) as Promotion[],
     settings,
     leadSummary: lead.summary,
   })
 
+  // Guarda respuesta del bot
   await supabase.from('messages').insert({
     lead_id: lead.id,
     direction: 'outbound',
     sender_type: 'bot',
-    content: claudeResponse.reply,
+    content: botResponse.reply,
   })
 
+  // Actualiza el lead con los datos detectados
   const updates: Record<string, unknown> = {
     last_message: userText,
     updated_at: new Date().toISOString(),
   }
-
-  if (claudeResponse.lead_updates.name) updates.name = claudeResponse.lead_updates.name
-  if (claudeResponse.lead_updates.interest) updates.interest = claudeResponse.lead_updates.interest
-  if (claudeResponse.lead_updates.selected_service_id) updates.selected_service_id = claudeResponse.lead_updates.selected_service_id
-  if (claudeResponse.lead_updates.status) updates.status = claudeResponse.lead_updates.status
-  if (claudeResponse.lead_updates.payment_status) updates.payment_status = claudeResponse.lead_updates.payment_status
-  if (claudeResponse.lead_updates.requires_human) updates.requires_human = claudeResponse.lead_updates.requires_human
-  if (claudeResponse.lead_updates.summary) updates.summary = claudeResponse.lead_updates.summary
+  const lu = botResponse.lead_updates
+  if (lu.name) updates.name = lu.name
+  if (lu.interest) updates.interest = lu.interest
+  if (lu.selected_service_id) updates.selected_service_id = lu.selected_service_id
+  if (lu.status) updates.status = lu.status
+  if (lu.payment_status) updates.payment_status = lu.payment_status
+  if (lu.requires_human) updates.requires_human = lu.requires_human
+  if (lu.summary) updates.summary = lu.summary
 
   await supabase.from('leads').update(updates).eq('id', lead.id)
 
-  await sendWhatsAppMessage(userPhone, claudeResponse.reply)
+  // Envía la respuesta principal
+  await sendWhatsAppMessage(userPhone, botResponse.reply)
+
+  // Si el bot decidió enviar link de pago, lo envía como mensaje separado
+  if (botResponse.actions.send_payment_link && botResponse.actions.payment_link) {
+    await new Promise(r => setTimeout(r, 800))
+    await sendWhatsAppMessage(userPhone, `🔗 Aquí tienes el link para completar el pago:\n${botResponse.actions.payment_link}`)
+    await supabase.from('messages').insert({
+      lead_id: lead.id,
+      direction: 'outbound',
+      sender_type: 'bot',
+      content: `🔗 Link de pago enviado: ${botResponse.actions.payment_link}`,
+    })
+    await supabase.from('leads').update({ status: 'payment_link_sent', updated_at: new Date().toISOString() }).eq('id', lead.id)
+  }
 
   return NextResponse.json({ status: 'ok' })
 }

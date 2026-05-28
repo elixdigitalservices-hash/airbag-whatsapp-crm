@@ -1,23 +1,119 @@
-import Anthropic from '@anthropic-ai/sdk'
-import type { ClaudeResponse, Service, Promotion } from '@/types'
+import OpenAI from 'openai'
+import type { Service, Promotion } from '@/types'
 
-const FALLBACK: ClaudeResponse = {
-  reply:
-    'Ahora mismo no puedo confirmar esa información con seguridad. Para evitar darte un dato incorrecto, contacta directamente con Autoescuela Airbag: 955 542 232 o info@aeairbag.com.',
+export interface BotResponse {
+  reply: string
   lead_updates: {
-    name: null,
-    interest: null,
-    selected_service_id: null,
-    status: 'asked_info',
-    payment_status: 'unpaid',
-    requires_human: false,
-    summary: '',
-  },
+    name: string | null
+    interest: string | null
+    selected_service_id: string | null
+    status: 'new' | 'asked_info' | 'interested' | 'payment_link_sent' | 'paid' | 'pending_human' | 'closed' | 'lost'
+    payment_status: 'unpaid' | 'paid' | 'refunded' | 'failed'
+    requires_human: boolean
+    summary: string
+  }
   actions: {
-    send_payment_link: false,
-    payment_link: null,
-    handoff_to_human: false,
+    send_payment_link: boolean
+    payment_link: string | null
+    handoff_to_human: boolean
+  }
+}
+
+const FALLBACK: BotResponse = {
+  reply: 'Ahora mismo no puedo confirmar esa información. Contacta directamente con nosotros: 955 542 232 o info@aeairbag.com.',
+  lead_updates: {
+    name: null, interest: null, selected_service_id: null,
+    status: 'asked_info', payment_status: 'unpaid',
+    requires_human: false, summary: '',
   },
+  actions: { send_payment_link: false, payment_link: null, handoff_to_human: false },
+}
+
+function buildSystemPrompt(
+  services: Service[],
+  promotions: Promotion[],
+  settings: Record<string, string>,
+  leadSummary?: string | null,
+): string {
+  const name = settings.school_name ?? 'Autoescuela Airbag'
+  const phone = settings.school_phone ?? '955 542 232'
+  const email = settings.school_email ?? 'info@aeairbag.com'
+  const address = settings.school_address ?? 'C. Navarro Caro, Tomares, Sevilla'
+  const hours = settings.school_hours ?? 'L-V 10:00-13:00 y 17:00-20:00'
+  const handoff = settings.handoff_message ?? `Para esto es mejor que te atienda directamente el equipo.\n📞 ${phone}\n✉️ ${email}`
+
+  const servicesBlock = services.length > 0
+    ? services.map(s => [
+        `• ${s.name}`,
+        s.price != null ? `  Precio: ${s.price} €` : '  Precio: consultar',
+        s.short_description ? `  ${s.short_description}` : '',
+        s.includes?.length ? `  Incluye: ${s.includes.join(' · ')}` : '',
+        s.payment_link ? `  Link de pago: ${s.payment_link}` : '',
+      ].filter(Boolean).join('\n')).join('\n\n')
+    : 'No hay servicios cargados aún.'
+
+  const promosBlock = promotions.length > 0
+    ? promotions.map(p => `• ${p.title}: ${p.bot_text ?? p.description ?? ''}`).join('\n')
+    : 'Sin promociones activas.'
+
+  return `Eres el asistente de ventas por WhatsApp de ${name}, una autoescuela en Sevilla.
+
+Tu misión: atender consultas, resolver dudas sobre precios y servicios, y convertir al interesado en alumno enviándole el link de pago cuando esté listo.
+
+━━━ DATOS DE LA ACADEMIA ━━━
+Nombre: ${name}
+Teléfono: ${phone}
+Email: ${email}
+Dirección: ${address}
+Horario: ${hours}
+
+━━━ SERVICIOS DISPONIBLES ━━━
+${servicesBlock}
+
+━━━ PROMOCIONES ACTIVAS ━━━
+${promosBlock}
+
+${leadSummary ? `━━━ HISTORIAL DE ESTE LEAD ━━━\n${leadSummary}\n` : ''}
+━━━ REGLAS OBLIGATORIAS ━━━
+1. Responde SIEMPRE en español, tono cercano y profesional.
+2. Responde SOLO sobre temas de la autoescuela y el carnet de conducir.
+3. NO inventes precios, fechas de examen, ni disponibilidad concreta.
+4. NO prometas aprobar ni garantices resultados.
+5. Si el usuario está listo para pagar → pon send_payment_link: true y payment_link con el link del servicio.
+6. Deriva a humano (requires_human: true, handoff_to_human: true) si:
+   - Pide hablar con una persona
+   - Hay problema con un pago ya realizado
+   - Pregunta por fecha concreta de examen DGT
+   - Caso especial (recuperación de puntos, empresa, etc.)
+   Mensaje de derivación: "${handoff}"
+7. Actualiza el status del lead según la conversación:
+   - new → asked_info (primer contacto con preguntas)
+   - asked_info → interested (muestra interés real)
+   - interested → payment_link_sent (quiere pagar)
+   - payment_link_sent → paid (confirma que pagó)
+8. Extrae el nombre si el usuario lo menciona.
+9. El campo "summary" resume en 1-2 frases quién es el lead y qué quiere.
+
+━━━ FORMATO DE RESPUESTA ━━━
+Responde ÚNICAMENTE con un objeto JSON válido, sin texto fuera del JSON:
+
+{
+  "reply": "mensaje para WhatsApp (texto plano, emojis permitidos, saltos de línea con \\n)",
+  "lead_updates": {
+    "name": null,
+    "interest": null,
+    "selected_service_id": null,
+    "status": "new|asked_info|interested|payment_link_sent|paid|pending_human|closed|lost",
+    "payment_status": "unpaid|paid|refunded|failed",
+    "requires_human": false,
+    "summary": "resumen breve del lead"
+  },
+  "actions": {
+    "send_payment_link": false,
+    "payment_link": null,
+    "handoff_to_human": false
+  }
+}`
 }
 
 export async function getChatbotReply({
@@ -34,7 +130,7 @@ export async function getChatbotReply({
   promotions: Promotion[]
   settings: Record<string, string>
   leadSummary?: string | null
-}): Promise<ClaudeResponse> {
+}): Promise<BotResponse> {
   const activeServices = services.filter(s => s.active)
   const activePromotions = promotions.filter(p => {
     if (!p.active) return false
@@ -44,74 +140,27 @@ export async function getChatbotReply({
     return true
   })
 
-  const systemPrompt = `Eres el asistente virtual de ${settings.school_name ?? 'Autoescuela Airbag'}, una autoescuela en Sevilla.
-
-Datos de contacto:
-- Teléfono: ${settings.school_phone ?? '955 542 232'}
-- Email: ${settings.school_email ?? 'info@aeairbag.com'}
-- Dirección: ${settings.school_address ?? 'C. Navarro Caro, Tomares, Sevilla'}
-- Horario: ${settings.school_hours ?? '10:00 a 13:00 y 17:00 a 20:00'}
-
-SERVICIOS DISPONIBLES:
-${activeServices.map(s => `
-- ${s.name} (${s.price != null ? s.price + ' €' : 'Precio no disponible'})
-  ${s.short_description ?? ''}
-  Incluye: ${(s.includes ?? []).join(', ')}
-  ${s.payment_link ? `Link de pago: ${s.payment_link}` : ''}
-`).join('\n')}
-
-PROMOCIONES ACTIVAS:
-${activePromotions.length > 0 ? activePromotions.map(p => `- ${p.title}: ${p.bot_text ?? p.description ?? ''}`).join('\n') : 'Sin promociones activas'}
-
-${leadSummary ? `HISTORIAL DEL LEAD: ${leadSummary}` : ''}
-
-REGLAS:
-- Responde SIEMPRE en español.
-- Responde SOLO sobre los servicios y datos de la autoescuela.
-- NO inventes precios, fechas exactas, ni promociones.
-- NO prometas aprobados ni resultados.
-- Si no tienes información suficiente, deriva al equipo humano.
-- Deriva a humano si: hay problemas de pago, el usuario ya pagó pero no aparece, preguntan fechas exactas de examen, disponibilidad concreta, casos especiales, recuperación de puntos, o el usuario quiere hablar con una persona.
-- Mensaje de derivación: "${settings.handoff_message ?? 'Para esto es mejor que te atienda directamente el equipo de Autoescuela Airbag.\n📞 Teléfono: 955 542 232\n✉️ Email: info@aeairbag.com'}"
-
-RESPONDE ÚNICAMENTE con un JSON válido con esta estructura exacta, sin texto fuera del JSON:
-{
-  "reply": "mensaje para WhatsApp (texto plano, puede incluir emojis y saltos de línea)",
-  "lead_updates": {
-    "name": null,
-    "interest": null,
-    "selected_service_id": null,
-    "status": "new|asked_info|interested|payment_link_sent|paid|pending_human|closed|lost",
-    "payment_status": "unpaid|paid|refunded|failed",
-    "requires_human": false,
-    "summary": "resumen breve del lead en 1-2 frases"
-  },
-  "actions": {
-    "send_payment_link": false,
-    "payment_link": null,
-    "handoff_to_human": false
-  }
-}`
+  const systemPrompt = buildSystemPrompt(activeServices, activePromotions, settings, leadSummary)
 
   try {
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
-    const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
       max_tokens: 1024,
-      system: systemPrompt,
+      response_format: { type: 'json_object' },
       messages: [
+        { role: 'system', content: systemPrompt },
         ...conversationHistory,
         { role: 'user', content: userMessage },
       ],
     })
 
-    const text = response.content[0].type === 'text' ? response.content[0].text : ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return FALLBACK
-
-    const parsed = JSON.parse(jsonMatch[0]) as ClaudeResponse
+    const text = response.choices[0]?.message?.content ?? ''
+    const parsed = JSON.parse(text) as BotResponse
     return parsed
-  } catch {
+  } catch (err) {
+    console.error('[chatbot] OpenAI error:', err)
     return FALLBACK
   }
 }

@@ -102,6 +102,7 @@ export interface InternalNote {
   created_at: string
 }
 
+/** @deprecated use BotResponse from lib/chatbot */
 export interface ClaudeResponse {
   reply: string
   lead_updates: {
