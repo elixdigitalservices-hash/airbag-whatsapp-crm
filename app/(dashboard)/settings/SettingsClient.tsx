@@ -492,29 +492,23 @@ function ServiceForm({ service, onSave, onCancel }: { service?: Partial<Service>
   )
 }
 
-function ServicesTab({ init, demoMode }: { init: Service[]; demoMode: boolean }) {
-  const [services, setServices] = useState(init)
+function ServicesTab({ services, setServices, refresh, demoMode }: { services: Service[]; setServices: React.Dispatch<React.SetStateAction<Service[]>>; refresh: () => Promise<void>; demoMode: boolean }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-
-  async function refreshServices() {
-    const res = await fetch('/api/services')
-    if (res.ok) setServices(await res.json())
-  }
 
   async function toggleActive(s: Service) {
     if (demoMode) return
     setServices(prev => prev.map(x => x.id === s.id ? { ...x, active: !x.active } : x))
     const res = await fetch(`/api/services/${s.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !s.active, updated_at: new Date().toISOString() }) })
-    if (!res.ok) await refreshServices()
+    if (!res.ok) await refresh()
   }
   async function handleDelete(id: string) {
     if (demoMode || !confirm('¿Eliminar este servicio?')) return
     setServices(s => s.filter(x => x.id !== id))
     const res = await fetch(`/api/services/${id}`, { method: 'DELETE' })
-    if (!res.ok) await refreshServices()
+    if (!res.ok) await refresh()
   }
-  async function handleSaved() { setEditing(null); setCreating(false); await refreshServices() }
+  async function handleSaved() { setEditing(null); setCreating(false); await refresh() }
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -636,30 +630,24 @@ function PromoForm({ promo, onSave, onCancel }: { promo?: Partial<Promotion>; on
   )
 }
 
-function PromosTab({ init, demoMode }: { init: Promotion[]; demoMode: boolean }) {
-  const [promos, setPromos] = useState(init)
+function PromosTab({ promos, setPromos, refresh, demoMode }: { promos: Promotion[]; setPromos: React.Dispatch<React.SetStateAction<Promotion[]>>; refresh: () => Promise<void>; demoMode: boolean }) {
   const [editing, setEditing] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const now = new Date()
-
-  async function refreshPromos() {
-    const res = await fetch('/api/promotions')
-    if (res.ok) setPromos(await res.json())
-  }
 
   async function toggleActive(p: Promotion) {
     if (demoMode) return
     setPromos(prev => prev.map(x => x.id === p.id ? { ...x, active: !x.active } : x))
     const res = await fetch(`/api/promotions/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !p.active, updated_at: new Date().toISOString() }) })
-    if (!res.ok) await refreshPromos()
+    if (!res.ok) await refresh()
   }
   async function handleDelete(id: string) {
     if (demoMode || !confirm('¿Eliminar esta promoción?')) return
     setPromos(p => p.filter(x => x.id !== id))
     const res = await fetch(`/api/promotions/${id}`, { method: 'DELETE' })
-    if (!res.ok) await refreshPromos()
+    if (!res.ok) await refresh()
   }
-  async function handleSaved() { setEditing(null); setCreating(false); await refreshPromos() }
+  async function handleSaved() { setEditing(null); setCreating(false); await refresh() }
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -753,6 +741,17 @@ export default function SettingsClient({
   demoMode?: boolean
 }) {
   const [tab, setTab] = useState('general')
+  const [services, setServices] = useState<Service[]>(initialServices)
+  const [promos, setPromos] = useState<Promotion[]>(initialPromos)
+
+  async function refreshServices() {
+    const res = await fetch('/api/services')
+    if (res.ok) setServices(await res.json())
+  }
+  async function refreshPromos() {
+    const res = await fetch('/api/promotions')
+    if (res.ok) setPromos(await res.json())
+  }
 
   return (
     <div>
@@ -775,8 +774,8 @@ export default function SettingsClient({
       </div>
 
       {tab === 'general' && <GeneralTab init={initialSettings} demoMode={demoMode} />}
-      {tab === 'servicios' && <ServicesTab init={initialServices} demoMode={demoMode} />}
-      {tab === 'promociones' && <PromosTab init={initialPromos} demoMode={demoMode} />}
+      {tab === 'servicios' && <ServicesTab services={services} setServices={setServices} refresh={refreshServices} demoMode={demoMode} />}
+      {tab === 'promociones' && <PromosTab promos={promos} setPromos={setPromos} refresh={refreshPromos} demoMode={demoMode} />}
       {tab === 'conocimiento' && <ConocimientoTab init={initialSettings} demoMode={demoMode} />}
       {tab === 'prompt' && <PromptTab init={initialSettings} demoMode={demoMode} />}
       {tab === 'bot' && <BotTab init={initialSettings} demoMode={demoMode} />}
