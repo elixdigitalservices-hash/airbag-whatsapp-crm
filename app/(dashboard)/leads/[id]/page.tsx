@@ -38,31 +38,30 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 px-8 py-6">
-        <Link href="/leads" className="inline-flex items-center gap-1.5 text-slate-400 hover:text-white text-sm mb-5 transition-colors">
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 px-4 py-4 md:px-8 md:py-6">
+        <Link href="/leads" className="inline-flex items-center gap-1.5 text-slate-400 hover:text-white text-sm mb-4 transition-colors">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           Leads
         </Link>
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-orange-500/30 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-orange-500/30 flex-shrink-0">
               {initials}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">
-                {lead.name ?? <span className="text-slate-400 italic font-normal text-xl">Sin nombre</span>}
+              <h1 className="text-xl md:text-2xl font-bold text-white">
+                {lead.name ?? <span className="text-slate-400 italic font-normal text-lg">Sin nombre</span>}
               </h1>
-              <div className="flex items-center gap-3 mt-1">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
                 <p className="text-slate-400 text-sm">{lead.phone}</p>
-                {lead.email && <p className="text-slate-500 text-sm">{lead.email}</p>}
-                <span className="text-slate-700 text-xs">·</span>
+                {lead.email && <p className="text-slate-500 text-xs">{lead.email}</p>}
                 <p className="text-slate-500 text-xs">
                   {new Date(lead.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             <LeadStatusBadge status={lead.status as LeadStatus} />
             <PaymentStatusBadge status={lead.payment_status} />
             {lead.requires_human && (
@@ -75,9 +74,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      <div className="p-6 grid grid-cols-3 gap-5">
+      <div className="p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Main column */}
-        <div className="col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-5">
           {/* Summary */}
           {lead.summary && (
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">

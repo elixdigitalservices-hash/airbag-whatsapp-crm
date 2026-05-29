@@ -1,4 +1,5 @@
 import Sidebar from '@/components/Sidebar'
+import MobileNavBar from '@/components/MobileNavBar'
 import { isDemoMode } from '@/lib/db'
 import { createServiceClient } from '@/lib/supabase/service'
 
@@ -16,9 +17,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <div className="flex min-h-screen bg-[#f4f5f7]">
       <Sidebar urgentCount={urgentCount} />
-      <main className="flex-1 overflow-auto min-h-screen">
+      <main className="flex-1 overflow-auto min-h-screen pb-16 md:pb-0">
         {children}
       </main>
+      <MobileNavBar urgentCount={urgentCount} />
     </div>
   )
 }

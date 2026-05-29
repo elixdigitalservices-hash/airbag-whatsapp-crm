@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import type { Lead, LeadStatus } from '@/types'
 
 export default function LeadActions({ lead, demoMode }: { lead: Lead; demoMode: boolean }) {
@@ -10,33 +9,25 @@ export default function LeadActions({ lead, demoMode }: { lead: Lead; demoMode: 
   const [saving, setSaving] = useState(false)
   const router = useRouter()
 
-  async function updateStatus(status: LeadStatus) {
+  async function patchLead(body: Record<string, unknown>) {
     if (demoMode) return
-    setSaving(true)
-    const supabase = createClient()
-    await supabase.from('leads').update({ status, updated_at: new Date().toISOString() }).eq('id', lead.id)
+    await fetch(`/api/leads/${lead.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
     router.refresh()
+  }
+
+  async function updateStatus(status: LeadStatus) {
+    setSaving(true)
+    await patchLead({ status })
     setSaving(false)
   }
 
   async function toggleHuman() {
-    if (demoMode) return
     setSaving(true)
-    const supabase = createClient()
-    await supabase.from('leads').update({
-      requires_human: !lead.requires_human,
-      updated_at: new Date().toISOString(),
-    }).eq('id', lead.id)
-    router.refresh()
-    setSaving(false)
-  }
-
-  async function markPaid() {
-    if (demoMode) return
-    setSaving(true)
-    const supabase = createClient()
-    await supabase.from('leads').update({ payment_status: 'paid', status: 'paid', updated_at: new Date().toISOString() }).eq('id', lead.id)
-    router.refresh()
+    await patchLead({ requires_human: !lead.requires_human })
     setSaving(false)
   }
 
@@ -44,8 +35,11 @@ export default function LeadActions({ lead, demoMode }: { lead: Lead; demoMode: 
     e.preventDefault()
     if (!note.trim() || demoMode) return
     setSaving(true)
-    const supabase = createClient()
-    await supabase.from('internal_notes').insert({ lead_id: lead.id, note: note.trim() })
+    await fetch(`/api/leads/${lead.id}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note: note.trim() }),
+    })
     setNote('')
     router.refresh()
     setSaving(false)
@@ -87,7 +81,7 @@ export default function LeadActions({ lead, demoMode }: { lead: Lead; demoMode: 
               : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20'
           }`}
         >
-          {lead.requires_human ? '✓ Reactivar bot' : '🙋 Tomar conversación'}
+          {saving ? '...' : lead.requires_human ? '✓ Reactivar bot' : '🙋 Tomar conversación'}
         </button>
       </div>
 
@@ -99,27 +93,27 @@ export default function LeadActions({ lead, demoMode }: { lead: Lead; demoMode: 
         <div className="p-4 space-y-2">
           <button
             onClick={() => updateStatus('interested')}
-            disabled={saving || demoMode}
+            disabled={saving || demoMode || lead.status === 'interested'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all disabled:opacity-40 font-medium group"
           >
             <span className="w-7 h-7 rounded-lg bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center text-sm transition-colors">✅</span>
             Marcar como contactado
           </button>
           <button
+            onClick={() => updateStatus('lost')}
+            disabled={saving || demoMode || lead.status === 'lost'}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all disabled:opacity-40 font-medium group"
+          >
+            <span className="w-7 h-7 rounded-lg bg-orange-50 group-hover:bg-orange-100 flex items-center justify-center text-sm transition-colors">📤</span>
+            Marcar como perdido
+          </button>
+          <button
             onClick={() => updateStatus('closed')}
-            disabled={saving || demoMode}
+            disabled={saving || demoMode || lead.status === 'closed'}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-700 hover:bg-slate-50 border border-slate-100 hover:border-slate-200 transition-all disabled:opacity-40 font-medium group"
           >
             <span className="w-7 h-7 rounded-lg bg-slate-50 group-hover:bg-slate-100 flex items-center justify-center text-sm transition-colors">🔒</span>
             Cerrar lead
-          </button>
-          <button
-            onClick={markPaid}
-            disabled={saving || demoMode}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-emerald-700 hover:bg-emerald-50 border border-emerald-100 hover:border-emerald-200 transition-all disabled:opacity-40 font-semibold group"
-          >
-            <span className="w-7 h-7 rounded-lg bg-emerald-50 group-hover:bg-emerald-100 flex items-center justify-center text-sm transition-colors">💰</span>
-            Marcar pagado manualmente
           </button>
           <a
             href={whatsappUrl}
@@ -164,7 +158,7 @@ export default function LeadActions({ lead, demoMode }: { lead: Lead; demoMode: 
             disabled={saving || !note.trim() || demoMode}
             className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white text-sm font-bold py-2.5 rounded-xl transition-all shadow-sm shadow-orange-500/20 active:scale-[0.98]"
           >
-            Guardar nota
+            {saving ? 'Guardando...' : 'Guardar nota'}
           </button>
         </form>
       </div>

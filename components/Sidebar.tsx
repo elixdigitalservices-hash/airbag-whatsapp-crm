@@ -59,7 +59,7 @@ export default function Sidebar({ urgentCount = 0 }: { urgentCount?: number }) {
 
   return (
     <aside
-      className={`${collapsed ? 'w-16' : 'w-64'} min-h-screen bg-slate-900 flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out`}
+      className={`${collapsed ? 'w-16' : 'w-64'} min-h-screen bg-slate-900 hidden md:flex flex-col flex-shrink-0 transition-all duration-300 ease-in-out`}
     >
       {/* Header */}
       <div className={`border-b border-slate-700/50 ${collapsed ? 'px-3 py-4 flex flex-col items-center gap-3' : 'px-5 py-5'}`}>
