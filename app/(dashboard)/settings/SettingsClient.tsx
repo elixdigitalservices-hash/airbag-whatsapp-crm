@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import type { Service, Promotion } from '@/types'
 
 const TABS = [
@@ -20,13 +19,26 @@ const BTN_PRIMARY = 'px-5 py-2.5 bg-orange-500 hover:bg-orange-600 active:scale-
 const BTN_SECONDARY = 'px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition-colors'
 const BTN_DANGER = 'px-3 py-1.5 border border-red-100 text-red-600 hover:bg-red-50 text-xs font-medium rounded-xl transition-colors'
 
+async function saveSettings(upserts: { key: string; value: string; updated_at: string }[]): Promise<string | null> {
+  const res = await fetch('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ upserts }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    return data.error ?? 'Error al guardar'
+  }
+  return null
+}
+
 // ── General tab ──────────────────────────────────────────────────────────────
 
 function GeneralTab({ init, demoMode }: { init: Record<string, string>; demoMode: boolean }) {
   const [values, setValues] = useState(init)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const supabase = createClient()
+  const [error, setError] = useState<string | null>(null)
 
   const FIELDS: { key: string; label: string; type: string; placeholder: string; rows?: number }[] = [
     { key: 'school_name', label: 'Nombre de la autoescuela', type: 'text', placeholder: 'Autoescuela Airbag' },
@@ -39,18 +51,19 @@ function GeneralTab({ init, demoMode }: { init: Record<string, string>; demoMode
     { key: 'school_differentiators', label: 'Puntos diferenciales', type: 'textarea', rows: 2, placeholder: 'Ej: Aprobamos el 85% de alumnos a la primera · Clases en fin de semana · Sin letra pequeña en el precio' },
   ]
 
+  const fullWidthKeys = new Set(['school_name', 'school_address', 'school_description', 'school_differentiators'])
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (demoMode) { setSaved(true); setTimeout(() => setSaved(false), 2000); return }
-    setSaving(true)
+    setSaving(true); setError(null)
     const upserts = FIELDS.map(f => ({ key: f.key, value: JSON.stringify(values[f.key] ?? ''), updated_at: new Date().toISOString() }))
-    await supabase.from('settings').upsert(upserts, { onConflict: 'key' })
+    const err = await saveSettings(upserts)
     setSaving(false)
+    if (err) { setError(err); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
-
-  const fullWidthKeys = new Set(['school_name', 'school_address', 'school_description', 'school_differentiators'])
 
   return (
     <form onSubmit={handleSave} className="space-y-5 max-w-2xl">
@@ -74,6 +87,7 @@ function GeneralTab({ init, demoMode }: { init: Record<string, string>; demoMode
           ))}
         </div>
       </div>
+      {error && <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3">⚠ {error}</p>}
       <div className="flex items-center gap-4">
         <button type="submit" disabled={saving} className={BTN_PRIMARY}>
           {saving ? 'Guardando...' : 'Guardar cambios'}
@@ -91,22 +105,24 @@ interface KbEntry { title: string; content: string }
 function ConocimientoTab({ init, demoMode }: { init: Record<string, string>; demoMode: boolean }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [kb, setKb] = useState<KbEntry[]>(() => {
-    try { return JSON.parse(init.knowledge_base ?? '[]') } catch { return [] }
+    try {
+      const raw = init.knowledge_base ?? '[]'
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch { return [] }
   })
   const [newEntry, setNewEntry] = useState<KbEntry>({ title: '', content: '' })
   const [addingEntry, setAddingEntry] = useState(false)
-  const supabase = createClient()
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (demoMode) { setSaved(true); setTimeout(() => setSaved(false), 2000); return }
-    setSaving(true)
-    await supabase.from('settings').upsert(
-      [{ key: 'knowledge_base', value: JSON.stringify(kb), updated_at: new Date().toISOString() }],
-      { onConflict: 'key' }
-    )
+    setSaving(true); setError(null)
+    const err = await saveSettings([{ key: 'knowledge_base', value: JSON.stringify(kb), updated_at: new Date().toISOString() }])
     setSaving(false)
+    if (err) { setError(err); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -119,7 +135,7 @@ function ConocimientoTab({ init, demoMode }: { init: Record<string, string>; dem
         <div>
           <h3 className="font-bold text-slate-900 text-sm">Base de Conocimiento</h3>
           <p className="text-xs text-slate-400 mt-1">
-            Bloques de información extra que el bot conoce y puede usar en sus respuestas: cómo pedir cita para el práctico, horarios de profesores, requisitos del examen médico, FAQs, políticas de devolución, etc. Añade todo lo que quieras.
+            Bloques de información extra que el bot conoce: cómo pedir cita para el práctico, horarios de profesores, requisitos del examen médico, FAQs, políticas de devolución… Añade todo lo que quieras.
           </p>
         </div>
 
@@ -179,6 +195,7 @@ function ConocimientoTab({ init, demoMode }: { init: Record<string, string>; dem
         )}
       </div>
 
+      {error && <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3">⚠ {error}</p>}
       <div className="flex items-center gap-4">
         <button type="submit" disabled={saving} className={BTN_PRIMARY}>
           {saving ? 'Guardando...' : 'Guardar conocimiento'}
@@ -191,21 +208,33 @@ function ConocimientoTab({ init, demoMode }: { init: Record<string, string>; dem
 
 // ── Prompt tab ────────────────────────────────────────────────────────────────
 
+const PROMPT_MAESTRO_RULES = [
+  { icon: '🎯', title: 'Regla de oro', desc: 'Primero ayuda, luego orienta, después vende.' },
+  { icon: '💬', title: 'Tono', desc: 'Cercano, natural, tutea siempre. Frases cortas. Máx. 3-4 líneas.' },
+  { icon: '😊', title: 'Emojis', desc: '✅ ventajas · 💶 precios · 📍 ubicación · 📞 teléfono · 🕒 horarios · 🚀 acción · 😊 cercanía. Máx. 2 por mensaje.' },
+  { icon: '🔁', title: 'No repetir', desc: 'Lee todo el historial antes de responder. Si ya diste precio o pediste nombre, no lo repitas.' },
+  { icon: '👤', title: 'Nombre del cliente', desc: 'Pídelo después de responder su pregunta, de forma natural. Una sola vez.' },
+  { icon: '💰', title: 'Precios', desc: 'Claro y directo con formato limpio. No inventar si no lo sabe.' },
+  { icon: '🔥', title: 'Cliente caliente', desc: 'Si pregunta precio, disponibilidad o cómo reservar → avanzar al cierre.' },
+  { icon: '❄️', title: 'Cliente frío', desc: 'Sin presión. Responde + pregunta suave: "¿Lo estás mirando para pronto?"' },
+  { icon: '🤝', title: 'Derivación a humano', desc: 'Solo si lo pide explícitamente, hay problema con pago ya realizado, o fecha de examen DGT. Siempre con mensaje contextual + "El equipo se pondrá en contacto lo antes posible 😊"' },
+  { icon: '🚫', title: 'Restricciones', desc: 'No inventar fechas ni disponibilidad. No garantizar aprobar. No salir del tema de la autoescuela.' },
+]
+
 function PromptTab({ init, demoMode }: { init: Record<string, string>; demoMode: boolean }) {
-  const [value, setValue] = useState(init.system_prompt ?? '')
+  const [bis, setBis] = useState(init.system_prompt ?? '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const supabase = createClient()
+  const [error, setError] = useState<string | null>(null)
+  const [showFull, setShowFull] = useState(false)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (demoMode) { setSaved(true); setTimeout(() => setSaved(false), 2000); return }
-    setSaving(true)
-    await supabase.from('settings').upsert(
-      [{ key: 'system_prompt', value: JSON.stringify(value), updated_at: new Date().toISOString() }],
-      { onConflict: 'key' }
-    )
+    setSaving(true); setError(null)
+    const err = await saveSettings([{ key: 'system_prompt', value: JSON.stringify(bis), updated_at: new Date().toISOString() }])
     setSaving(false)
+    if (err) { setError(err); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -214,39 +243,74 @@ function PromptTab({ init, demoMode }: { init: Record<string, string>; demoMode:
     <form onSubmit={handleSave} className="space-y-5 max-w-2xl">
       {demoMode && <DemoBanner />}
 
+      {/* Prompt Maestro — read only */}
+      <div className="bg-slate-900 rounded-2xl p-6 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-bold text-white text-sm">Prompt Maestro</h3>
+              <span className="px-2 py-0.5 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-wide">Sistema</span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 text-[10px] font-semibold uppercase tracking-wide">🔒 No editable</span>
+            </div>
+            <p className="text-xs text-slate-400">Comportamiento base del bot. Se aplica siempre, independientemente de lo que configures abajo.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2">
+          {(showFull ? PROMPT_MAESTRO_RULES : PROMPT_MAESTRO_RULES.slice(0, 5)).map((r, i) => (
+            <div key={i} className="flex items-start gap-3 bg-slate-800 rounded-xl px-4 py-3">
+              <span className="text-base flex-shrink-0 mt-0.5">{r.icon}</span>
+              <div>
+                <p className="text-xs font-bold text-slate-200">{r.title}</p>
+                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{r.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button type="button" onClick={() => setShowFull(v => !v)}
+          className="text-xs text-orange-400 hover:text-orange-300 font-medium transition-colors">
+          {showFull ? '▲ Ver menos' : `▼ Ver las ${PROMPT_MAESTRO_RULES.length - 5} reglas restantes`}
+        </button>
+      </div>
+
+      {/* Prompt Maestro BIS — editable */}
       <div className="bg-white rounded-2xl border-2 border-orange-100 shadow-sm p-6 space-y-4">
         <div>
-          <h3 className="font-bold text-slate-900">Prompt Maestro</h3>
-          <p className="text-xs text-slate-400 mt-1">
-            Define la personalidad, el tono y las reglas del bot. Lo que escribas aquí se añade al inicio de cada conversación, antes que cualquier otra instrucción. Si lo dejas vacío, el bot usa su comportamiento por defecto.
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-bold text-slate-900 text-sm">Prompt Maestro BIS</h3>
+            <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold uppercase tracking-wide">Personalizable</span>
+          </div>
+          <p className="text-xs text-slate-400">
+            Tus reglas extra, añadidas encima del Prompt Maestro. Úsalas para restricciones específicas del negocio, frases prohibidas, cómo manejar objeciones de precio, qué ofrecer primero, etc.
           </p>
         </div>
 
         <textarea
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          rows={16}
-          placeholder={`Ejemplo de lo que puedes escribir aquí:\n\nEres el asistente de ventas de Autoescuela Airbag. Tu tono es cercano, profesional y siempre en español.\n\nREGLAS:\n- Nunca menciones la competencia\n- Si preguntan por precio del carnet de coche, di siempre el pack completo primero\n- Cuando alguien dude del precio, ofrece el plan de pago en cuotas\n- No prometas fechas de examen concretas\n\nFRASES PROHIBIDAS:\n- "No lo sé"\n- "No tengo esa información"\n\nANTE OBJECIONES DE PRECIO:\n- "Entiendo que puede parecer mucho, pero incluye todo lo necesario para aprobar..."`}
+          value={bis}
+          onChange={e => setBis(e.target.value)}
+          rows={12}
+          placeholder={`Ejemplos de lo que puedes añadir aquí:\n\nFRASES PROHIBIDAS:\n- Nunca menciones a otras autoescuelas\n- No digas "no lo sé" — di siempre que lo confirmas con el equipo\n\nANTE OBJECIONES DE PRECIO:\n- "Entiendo que puede parecer mucho, pero incluye todo: matrícula, teórico, tasas y clases"\n- Si insiste, menciona que hay facilidades de pago\n\nQUÉ OFRECER PRIMERO:\n- Siempre el Pack Completo de Coche antes del básico\n- Si preguntan por moto, mencionar que pueden combinar coche+moto con descuento\n\nHORARIO CLASES PRÁCTICAS:\n- Solo disponibles con cita previa — no hay horario fijo publicado`}
           className={`${INPUT} resize-y font-mono text-xs leading-relaxed`}
         />
 
         <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3 text-xs text-orange-700 space-y-1">
-          <p className="font-semibold">💡 Consejos</p>
-          <p>Sé específico: tono, qué ofrecer primero, cómo manejar el precio, cuándo derivar a humano.</p>
-          <p>Puedes usar formato libre — el bot lo entiende aunque no sea JSON ni markdown.</p>
+          <p className="font-semibold">💡 Cómo funciona</p>
+          <p>Lo que escribas aquí se ejecuta CON las reglas del Prompt Maestro, no en lugar de ellas. Si hay contradicción, lo que escribas aquí tiene prioridad.</p>
           <p>Los servicios, promociones y base de conocimiento se añaden automáticamente — no hace falta repetirlos aquí.</p>
         </div>
       </div>
 
+      {error && <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3">⚠ {error}</p>}
       <div className="flex items-center gap-4">
         <button type="submit" disabled={saving} className={BTN_PRIMARY}>
-          {saving ? 'Guardando...' : 'Guardar prompt'}
+          {saving ? 'Guardando...' : 'Guardar Prompt BIS'}
         </button>
         {saved && <span className="text-sm text-emerald-600 font-semibold">✓ Guardado</span>}
-        {value && (
-          <button type="button" onClick={() => { if (confirm('¿Borrar el prompt maestro y usar el comportamiento por defecto?')) setValue('') }}
+        {bis && (
+          <button type="button" onClick={() => { if (confirm('¿Borrar el Prompt BIS?')) setBis('') }}
             className={BTN_SECONDARY + ' text-xs'}>
-            Restablecer por defecto
+            Vaciar BIS
           </button>
         )}
       </div>
@@ -261,7 +325,7 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
   const [active, setActive] = useState(init.chatbot_active === 'true')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const supabase = createClient()
+  const [error, setError] = useState<string | null>(null)
 
   const MSG_FIELDS = [
     { key: 'welcome_message', label: 'Mensaje de bienvenida', rows: 4, hint: 'Primera respuesta que envía el bot cuando alguien escribe por primera vez' },
@@ -271,13 +335,14 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (demoMode) { setSaved(true); setTimeout(() => setSaved(false), 2000); return }
-    setSaving(true)
+    setSaving(true); setError(null)
     const upserts = [
       ...MSG_FIELDS.map(f => ({ key: f.key, value: JSON.stringify(values[f.key] ?? ''), updated_at: new Date().toISOString() })),
       { key: 'chatbot_active', value: JSON.stringify(active), updated_at: new Date().toISOString() },
     ]
-    await supabase.from('settings').upsert(upserts, { onConflict: 'key' })
+    const err = await saveSettings(upserts)
     setSaving(false)
+    if (err) { setError(err); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
@@ -341,6 +406,7 @@ function BotTab({ init, demoMode }: { init: Record<string, string>; demoMode: bo
         </div>
       </div>
 
+      {error && <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-200 rounded-xl px-4 py-3">⚠ {error}</p>}
       <div className="flex items-center gap-4">
         <button type="submit" disabled={saving} className={BTN_PRIMARY}>
           {saving ? 'Guardando...' : 'Guardar configuración'}
@@ -528,7 +594,7 @@ function PromoForm({ promo, onSave, onCancel }: { promo?: Partial<Promotion>; on
     <form onSubmit={handleSubmit} className="space-y-4">
       <div><label className={LABEL}>Título</label>
         <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} required className={INPUT} /></div>
-      <div><label className={LABEL}>Descripción</label>
+      <div><label className={LABEL}>Descripción interna</label>
         <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} className={`${INPUT} resize-none`} /></div>
       <div><label className={LABEL}>Texto que usará el bot</label>
         <textarea value={form.bot_text} onChange={e => setForm(p => ({ ...p, bot_text: e.target.value }))} rows={3}
@@ -670,7 +736,7 @@ export default function SettingsClient({
   return (
     <div>
       {/* Tab nav */}
-      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-2xl w-fit">
+      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-2xl w-fit flex-wrap">
         {TABS.map(t => (
           <button
             key={t.id}

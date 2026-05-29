@@ -178,7 +178,9 @@ export async function getSettings(): Promise<Record<string, string>> {
   const settings: Record<string, string> = {}
   for (const row of data ?? []) {
     try {
-      settings[row.key] = typeof row.value === 'string' ? JSON.parse(row.value) : String(row.value ?? '')
+      const parsed = typeof row.value === 'string' ? JSON.parse(row.value) : (row.value ?? '')
+      // Always store as string — arrays/booleans/objects get re-serialized
+      settings[row.key] = typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
     } catch {
       settings[row.key] = String(row.value ?? '')
     }
