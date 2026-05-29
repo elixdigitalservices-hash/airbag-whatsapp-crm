@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { Service, Promotion } from '@/types'
 
 const TABS = [
@@ -144,7 +143,11 @@ function ConocimientoTab({ init, demoMode }: { init: Record<string, string>; dem
             <div key={i} className="border border-slate-200 rounded-xl p-4 bg-slate-50 group">
               <div className="flex items-start justify-between gap-2 mb-2">
                 <p className="text-sm font-bold text-slate-900">{entry.title}</p>
-                <button type="button" onClick={() => setKb(k => k.filter((_, idx) => idx !== i))}
+                <button type="button" onClick={async () => {
+                  const updated = kb.filter((_, idx) => idx !== i)
+                  setKb(updated)
+                  await saveSettings([{ key: 'knowledge_base', value: JSON.stringify(updated), updated_at: new Date().toISOString() }])
+                }}
                   className="text-red-400 hover:text-red-600 text-xs opacity-0 group-hover:opacity-100 transition-opacity font-medium flex-shrink-0 px-2 py-1">
                   Eliminar
                 </button>
@@ -177,11 +180,17 @@ function ConocimientoTab({ init, demoMode }: { init: Record<string, string>; dem
             </div>
             <div className="flex gap-2">
               <button type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (!newEntry.title.trim() || !newEntry.content.trim()) return
-                  setKb(k => [...k, { title: newEntry.title.trim(), content: newEntry.content.trim() }])
+                  const updated = [...kb, { title: newEntry.title.trim(), content: newEntry.content.trim() }]
+                  setKb(updated)
                   setNewEntry({ title: '', content: '' })
                   setAddingEntry(false)
+                  setSaving(true)
+                  await saveSettings([{ key: 'knowledge_base', value: JSON.stringify(updated), updated_at: new Date().toISOString() }])
+                  setSaving(false)
+                  setSaved(true)
+                  setTimeout(() => setSaved(false), 2000)
                 }}
                 className={BTN_PRIMARY}>Añadir bloque</button>
               <button type="button" onClick={() => { setAddingEntry(false); setNewEntry({ title: '', content: '' }) }}
@@ -487,19 +496,25 @@ function ServicesTab({ init, demoMode }: { init: Service[]; demoMode: boolean })
   const [services, setServices] = useState(init)
   const [editing, setEditing] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const router = useRouter()
+
+  async function refreshServices() {
+    const res = await fetch('/api/services')
+    if (res.ok) setServices(await res.json())
+  }
 
   async function toggleActive(s: Service) {
     if (demoMode) return
-    await fetch(`/api/services/${s.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !s.active, updated_at: new Date().toISOString() }) })
-    router.refresh()
+    setServices(prev => prev.map(x => x.id === s.id ? { ...x, active: !x.active } : x))
+    const res = await fetch(`/api/services/${s.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !s.active, updated_at: new Date().toISOString() }) })
+    if (!res.ok) await refreshServices()
   }
   async function handleDelete(id: string) {
     if (demoMode || !confirm('¿Eliminar este servicio?')) return
-    await fetch(`/api/services/${id}`, { method: 'DELETE' })
     setServices(s => s.filter(x => x.id !== id))
+    const res = await fetch(`/api/services/${id}`, { method: 'DELETE' })
+    if (!res.ok) await refreshServices()
   }
-  function handleSaved() { setEditing(null); setCreating(false); router.refresh() }
+  async function handleSaved() { setEditing(null); setCreating(false); await refreshServices() }
 
   return (
     <div className="space-y-4 max-w-3xl">
@@ -625,20 +640,26 @@ function PromosTab({ init, demoMode }: { init: Promotion[]; demoMode: boolean })
   const [promos, setPromos] = useState(init)
   const [editing, setEditing] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
-  const router = useRouter()
   const now = new Date()
+
+  async function refreshPromos() {
+    const res = await fetch('/api/promotions')
+    if (res.ok) setPromos(await res.json())
+  }
 
   async function toggleActive(p: Promotion) {
     if (demoMode) return
-    await fetch(`/api/promotions/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !p.active, updated_at: new Date().toISOString() }) })
-    router.refresh()
+    setPromos(prev => prev.map(x => x.id === p.id ? { ...x, active: !x.active } : x))
+    const res = await fetch(`/api/promotions/${p.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ active: !p.active, updated_at: new Date().toISOString() }) })
+    if (!res.ok) await refreshPromos()
   }
   async function handleDelete(id: string) {
     if (demoMode || !confirm('¿Eliminar esta promoción?')) return
-    await fetch(`/api/promotions/${id}`, { method: 'DELETE' })
     setPromos(p => p.filter(x => x.id !== id))
+    const res = await fetch(`/api/promotions/${id}`, { method: 'DELETE' })
+    if (!res.ok) await refreshPromos()
   }
-  function handleSaved() { setEditing(null); setCreating(false); router.refresh() }
+  async function handleSaved() { setEditing(null); setCreating(false); await refreshPromos() }
 
   return (
     <div className="space-y-4 max-w-3xl">
